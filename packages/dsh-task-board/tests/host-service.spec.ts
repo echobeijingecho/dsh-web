@@ -80,6 +80,8 @@ function timerProbe() {
   }
   return {
     timers,
+    /** Whether a schedule timer is currently armed, including an immediate one. */
+    get armed(): boolean { return last !== undefined },
     /** Delay of the most recently armed schedule timer, in ms. */
     get delay(): number { return last?.delay ?? 0 },
     /** Fire the most recently armed schedule timer and flush its launch chain. */
@@ -358,6 +360,57 @@ describe('TaskBoardHostService scheduling without a browser', () => {
     expect(ledger.state().tasks[0].executions).toHaveLength(1)
     expect(ledger.state().tasks[0].executions[0].sessionId).toBe('session-scheduled')
     // The schedule rolled to 10:02:00 and re-armed one minute out.
+    expect(probe.delay).toBe(60_000)
+    service.dispose()
+  })
+
+  it('re-arms a due schedule when an early timer callback crosses its trigger', async () => {
+    // Given a recurring rule whose native timer fires one millisecond early
+    let now = new Date(2026, 7, 16, 10, 0, 30).getTime()
+    const target = new Date(2026, 7, 16, 10, 1, 0).getTime()
+    const ledger = new HostTaskLedger(root(), () => now)
+    ledger.applyRequest('create', {
+      kind: 'create', id: 'scheduled', input: {
+        title: 'Scheduled', description: '', prompt: 'work', schedule: { enabled: true, cron: '* * * * *' },
+      },
+    })
+    const create = vi.fn(async (_request: GatewayRequest) => ({ sessionId: 'session-scheduled' }))
+    const { gateway } = makeGateway(request => {
+      if (request.method === 'create') return create(request)
+      if (request.method === 'rename') return { title: 'Scheduled', seq: 1 }
+      if (request.method === 'prompt') return { accepted: true }
+      throw new Error('unexpected gateway call')
+    })
+    const probe = timerProbe()
+    const service = new TaskBoardHostService(gateway, {
+      ledger,
+      power: new PowerInhibitor({ platform: 'linux' }),
+      timers: probe.timers,
+      now: () => {
+        const current = now
+        // The heartbeat write takes the wall clock across the planned instant.
+        if (current === target - 1) now = target
+        return current
+      },
+      workspaceRegistry: fixtureWorkspaces(),
+    })
+    service.start()
+    expect(probe.delay).toBe(30_000)
+
+    // When the early callback finds nothing due and re-arms after the target
+    now = target - 1
+    await probe.trigger()
+
+    // Then the due target remains armed for immediate service instead of vanishing
+    expect(create).not.toHaveBeenCalled()
+    expect(probe.armed).toBe(true)
+    expect(probe.delay).toBe(0)
+
+    // And the immediate callback opens exactly one run and rolls to the next minute
+    await probe.trigger()
+    expect(create).toHaveBeenCalledOnce()
+    expect(ledger.state().tasks[0].executions).toHaveLength(1)
+    expect(ledger.state().tasks[0].schedule?.nextRunAt).toBe(target + 60_000)
     expect(probe.delay).toBe(60_000)
     service.dispose()
   })

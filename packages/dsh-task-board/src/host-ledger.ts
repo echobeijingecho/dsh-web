@@ -644,20 +644,19 @@ export class HostTaskLedger {
   }
 
   /**
-   * The earliest armed `nextRunAt` strictly after the supplied Host time, or
-   * undefined when no schedule is armed in the future. This is the instant the
-   * Host arms its native timer at, so the board wakes exactly when work is due
-   * instead of polling a fixed heartbeat.
-   * @param now - current Host time in ms epoch.
-   * @returns the nearest future trigger, or undefined when none is armed.
+   * The earliest armed `nextRunAt`, including one already due at the supplied
+   * Host time. A native timer may fire slightly early and cross its target while
+   * the tick is persisted; retaining that target lets the Host re-arm it with
+   * zero delay instead of losing the schedule until another write or restart.
+   * @param _now - current Host time in ms epoch.
+   * @returns the nearest armed trigger, or undefined when none is armed.
    */
-  nextArmedRunAt(now: number): number | undefined {
+  nextArmedRunAt(_now: number): number | undefined {
     let nearest: number | undefined
     for (const task of this.document.tasks) {
       if (task.archivedAt !== undefined) continue
       const schedule = task.schedule
       if (schedule === undefined || !schedule.enabled || schedule.nextRunAt === undefined) continue
-      if (schedule.nextRunAt <= now) continue
       if (nearest === undefined || schedule.nextRunAt < nearest) nearest = schedule.nextRunAt
     }
     return nearest

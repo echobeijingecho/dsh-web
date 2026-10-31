@@ -22,7 +22,7 @@ Status: implemented
 - 原生面板：`board-view.spec.tsx` 改为渲染页面并断言 `data-dsh-taskboard-view`/`data-dsh-plugin` 锚点与 container query 上下文；`sidebar-entry-layout.spec.ts` 钉住座位名、字形契约、shell 拥有的标签，以及接管 CSS 已不存在；`client-apply-teardown.spec.ts` 断言两个注册都落在官方座位并随 fiber 释放（原地替换 bundle 后不留僵尸行）。
 - 面板导航：`controller.spec.ts` 覆盖开/关的选择序列、重复打开的 no-op、布局面抛错，以及跟随外部切换且不回写。
 - 互斥：`panel-coexistence.spec.ts` 覆盖 ssh 协议的两个方向、忽略外来/自身广播，以及已销毁 fiber 退出协议。
-- 原生定时器：`host-service.spec.ts` 与 `handover-confirm.spec.ts` 驱动可控的 `HostTimerFace`，断言武装时刻、归档跳过、错过出现时的恢复路径、唯一周期定时器，以及 `start()` 幂等；`host-service.spec.ts` 另加两例：新建对话框带启用 schedule 保存的卡片（规则落地的同时定时器已为它武装，且那次出现确实把卡片跑起来），以及在任何会话存在之前启动失败的上限规则（退款恢复目标后定时器为恢复出的那次出现武装，服务它时恰好花掉退回的那次预算）。
+- 原生定时器：`host-service.spec.ts` 与 `handover-confirm.spec.ts` 驱动可控的 `HostTimerFace`，断言武装时刻、归档跳过、错过出现时的恢复路径、唯一周期定时器，以及 `start()` 幂等；`host-service.spec.ts` 另加两例：新建对话框带启用 schedule 保存的卡片（规则落地的同时定时器已为它武装，且那次出现确实把卡片跑起来），以及在任何会话存在之前启动失败的上限规则（退款恢复目标后定时器为恢复出的那次出现武装，服务它时恰好花掉退回的那次预算）。提前回调回归让心跳写盘期间跨过目标时刻：已到期目标以零延迟重新武装，恰好执行一次，并滚动到下一次出现。
 - 门禁：`pnpm typecheck`（全仓）、包测试、`sync-shared --check`、`inject-contract`、`aggregate --check` 通过；`@deepseek-ai/dsh-client-ui-layout` 进入 `APPROVED_INJECT_MODULES`（它是 ui-layout 行，拥有 `main` 座位与 `ctx.layout`），sync-shared 副本计数变为 98 总 / 38 client。
 
 ## Alternatives considered
